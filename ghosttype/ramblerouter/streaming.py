@@ -1,15 +1,9 @@
+"""Streaming router for GhostType."""
 from typing import List, Dict, Any, Optional, AsyncIterator
 from dataclasses import dataclass
 import asyncio
 
 from ghosttype.ramblerouter.router import Router, RouterOutput, Action, Route
-from .streaming_architecture import (
-    StablePrefixDetector,
-    StreamingDeltaMode,
-    EditEventStream,
-    PendingOverlay,
-    StreamingOrchestrator,
-)
 
 
 @dataclass
@@ -18,23 +12,10 @@ class StreamingDelta:
     text: str = ""
     actions: List[Action] = None
     is_complete: bool = False
-    confidence: float = 1.0
-    pending_text: str = ""
-    stable_text: str = ""
     
     def __post_init__(self):
         if self.actions is None:
             self.actions = []
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "text": self.text,
-            "actions": [a.to_dict() for a in self.actions],
-            "is_complete": self.is_complete,
-            "confidence": self.confidence,
-            "pending_text": self.pending_text,
-            "stable_text": self.stable_text,
-        }
 
 
 class StreamingRouter:
@@ -48,55 +29,50 @@ class StreamingRouter:
         self._min_stable_words = self.config.get("min_stable_words", 3)
         self._route_partial_deltas = self.config.get("route_partial_deltas", False)
         self._final_correction_pass = self.config.get("final_correction_pass", True)
-        
-        self._stable_detector = StablePrefixDetector(
-            min_words=self._min_stable_words,
-            stability_delay_ms=self._stable_delay_ms,
-        )
-        
-        self._orchestrator: Optional[StreamingOrchestrator] = None
-    
-    def _get_orchestrator(self) -> StreamingOrchestrator:
-        if self._orchestrator is None:
-            self._orchestrator = StreamingOrchestrator(config=self.config)
-            
-            if self.router.strong_llm:
-                self._orchestrator.set_correction_llm(self.router.strong_llm)
-        
-        return self._orchestrator
     
     async def route_stream(
         self,
         text_stream: AsyncIterator[str]
     ) -> AsyncIterator[StreamingDelta]:
-        orchestrator = self._get_orchestrator()
+        """Route text as it streams in."""
+        pending_text = ""
+        stable_prefix = ""
+        last_route: Optional[RouterOutput] = None
         
-        async for event in orchestrator.process_text_stream(text_stream):
-            if event.get("is_final"):
-                yield StreamingDelta(
-                    text=event.get("final_text", ""),
-                    actions=[],
-                    is_complete=True,
-                    confidence=event.get("confidence", 1.0),
-                    corrected_text=event.get("corrected_text"),
-                )
-            else:
-                stable_text = event.get("stable_text", "")
-                pending_text = event.get("pending_text", "")
+        async for chunk in text_stream:
+            pending_text += chunk
+            
+            # Check for stable prefix
+            if len(pending_text.split()) >= self._min_stable_words:
+                # Split into stable and pending
+                words = pending_text.split()
+                stable_prefix = " ".join(words[:-1])
+                pending_text = words[-1]
                 
-                actions = []
-                if self._route_partial_deltas and stable_text:
-                    route = self.router.route(stable_text)
-                    actions = route.actions
-                
-                yield StreamingDelta(
-                    text=stable_text + " " + pending_text,
-                    actions=actions,
-                    is_complete=False,
-                    confidence=event.get("confidence", 0.5),
-                    pending_text=pending_text,
-                    stable_text=stable_text,
-                )
+                # Route stable prefix
+                if self._route_partial_deltas:
+                    route = self.router.route(stable_prefix)
+                    
+                    if route != last_route:
+                        yield StreamingDelta(
+                            text=stable_prefix,
+                            actions=route.actions,
+                            is_complete=False,
+                        )
+                        last_route = route
+            
+            # Small delay to allow for more stable input
+            await asyncio.sleep(self._stable_delay_ms / 1000)
+        
+        # Route final text
+        final_text = stable_prefix + " " + pending_text if stable_prefix else pending_text
+        final_route = self.router.route(final_text)
+        
+        yield StreamingDelta(
+            text=final_text,
+            actions=final_route.actions,
+            is_complete=True,
+        )
     
     async def route_with_correction(
         self,
@@ -104,15 +80,19 @@ class StreamingRouter:
         partial_deltas: List[StreamingDelta]
     ) -> RouterOutput:
         """Route text with final correction pass."""
+        # Combine all deltas
         full_text = " ".join(d.text for d in partial_deltas if d.text)
         
+        # Route final text
         return self.router.route(full_text)
     
     def is_stable(self, text: str) -> bool:
         """Check if text is stable enough for routing."""
+        # Simple stability check
         if len(text.split()) < self._min_stable_words:
             return False
         
+        # Check for trailing punctuation
         if text and text[-1] in ".!?":
             return True
         
@@ -126,21 +106,11 @@ class StreamingRouter:
         
         return " ".join(words[-(len(words) - self._min_stable_words):])
     
-    def get_edit_events(self) -> EditEventStream:
-        return self._get_orchestrator().edit_events
-    
-    def get_pending_overlay(self) -> PendingOverlay:
-        return self._get_orchestrator().pending_overlay
-    
-    def reset(self):
-        if self._orchestrator:
-            self._orchestrator.reset()
-    
     def diagnostics(self) -> Dict[str, Any]:
+        """Get streaming router diagnostics."""
         return {
             "stable_delay_ms": self._stable_delay_ms,
             "min_stable_words": self._min_stable_words,
             "route_partial_deltas": self._route_partial_deltas,
             "final_correction_pass": self._final_correction_pass,
-            "orchestrator": self._get_orchestrator().diagnostics(),
         }
