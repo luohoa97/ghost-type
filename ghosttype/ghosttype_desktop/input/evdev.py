@@ -42,7 +42,12 @@ class EvdevEvent:
 class EvdevProvider:
     """Input provider using evdev (Linux input subsystem)."""
 
-    F24_KEY_CODE = 107
+    VOICE_KEY_CODES = {
+        "CapsLock": 58,
+        "F24": 107,
+        "F22": 105,
+        "F23": 106,
+    }
     KEY_CODES = {
         58: "CapsLock",
         57: "Space",
@@ -74,7 +79,9 @@ class EvdevProvider:
         107: "F24",
     }
 
-    def __init__(self):
+    def __init__(self, voice_key: str = "F24"):
+        self._voice_key = voice_key
+        self._voice_key_code = self.VOICE_KEY_CODES.get(voice_key, 58)
         self._running = False
         self._event_callback: Optional[Callable[[EvdevEvent], None]] = None
         self._thread: Optional[Thread] = None
@@ -208,7 +215,8 @@ class EvdevProvider:
             "available": self.is_available(),
             "device_count": len(self._devices),
             "devices": self._device_paths,
-            "f24_key_code": self.F24_KEY_CODE,
+            "voice_key": self._voice_key,
+            "voice_key_code": self._voice_key_code,
         }
 
 

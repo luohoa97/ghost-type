@@ -135,9 +135,13 @@ def run_once(audio: str = typer.Option(..., "--audio", help="Audio file to proce
 @app.command()
 def listen():
     """Start hold-to-talk daemon in foreground for debugging."""
+    config_manager = ConfigManager()
+    config_manager.load()
+    voice_key = config_manager.config.hotkeys.voice_key
+    
     console.print("[bold green]Listening...[/bold green]")
-    console.print("Press F24 to start recording")
-    console.print("Press Shift+F24 for OCR")
+    console.print(f"Press {voice_key} to start recording")
+    console.print(f"Press Shift+{voice_key} for OCR")
     console.print("Press Ctrl+C to stop")
     
     import time
