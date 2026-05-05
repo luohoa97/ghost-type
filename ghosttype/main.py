@@ -1,36 +1,29 @@
-from ghosttype.core.config import ConfigManager
-from ghosttype.packages.ghosttype_desktop.desktop.registry import DesktopRegistry
-from ghosttype.packages.ramblerouter.router import Router
-from ghosttype.packages.ghosttype_desktop.output.injector import ActionExecutor
+"""GhostType main entry point."""
+import logging
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from ghosttype_desktop.app import GhostTypeDesktopApp, create_app
 
 
-class GhostTypeApp:
-    def __init__(self):
-        self.config = ConfigManager()
-        self.config.load()
-        self.backend = DesktopRegistry.detect_best_backend()
-        self.router = Router("groq", "llama-3.1-8b-instant")
-        self.executor = ActionExecutor(self.backend)
+def main():
+    """Main entry point for GhostType."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
 
-    def process_audio(self, audio_data: bytes):
-        # 1. Transcribe (Phase 1/2)
-        # STT implementation will be added in Phase 2
-        from ghosttype.providers.stt.base import STTProvider
-        from ghosttype.providers.stt.groq_whisper import GroqWhisperProvider
-        
-        try:
-            provider = GroqWhisperProvider(self.config.config)
-            transcript = provider.transcribe(audio_data)
-        except Exception as e:
-            raise RuntimeError(f"Transcription failed: {e}")
-        
-        # 2. Route (Phase 3)
-        decision = self.router.route(transcript)
-        
-        # 3. Execute (Phase 3)
-        self.executor.execute_sequence(decision["actions"])
+    app = create_app()
+
+    print(f"GhostType started")
+    print(f"Audio available: {app._recorder is not None}")
+    print(f"Input available: {app._input_provider is not None}")
+    print(f"Router available: {app._router is not None}")
+
+    return app
 
 
 if __name__ == "__main__":
-    app = GhostTypeApp()
-    print(f"GhostType started with backend: {app.backend.get_name()}")
+    main()
