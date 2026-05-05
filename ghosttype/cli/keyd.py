@@ -12,17 +12,22 @@ console = Console()
 @app.command("print-config")
 def keyd_print_config():
     """Print keyd configuration."""
+    from ghosttype.core.config import ConfigManager
+    config_manager = ConfigManager()
+    config_manager.load()
+    voice_key = config_manager.config.hotkeys.voice_key
+    
     console.print(Panel("[bold green]GhostType keyd Configuration[/bold green]"))
     
-    config = """[ids]
+    config = f"""[ids]
 *
 
 [main]
-capslock = f24
+{voice_key.lower()} = f24
 """
     console.print(config)
     console.print("")
-    console.print("[yellow]This maps CapsLock to F24 for voice activation.[/yellow]")
+    console.print(f"[yellow]This maps {voice_key} to F24 for voice activation.[/yellow]")
 
 
 @app.command("doctor")
@@ -50,13 +55,18 @@ def keyd_doctor():
 @app.command("install-config")
 def keyd_install_config():
     """Install keyd configuration."""
+    from ghosttype.core.config import ConfigManager
+    config_manager = ConfigManager()
+    config_manager.load()
+    voice_key = config_manager.config.hotkeys.voice_key
+    
     console.print(Panel("[bold green]Installing keyd Configuration[/bold green]"))
     
-    config = """[ids]
+    config = f"""[ids]
 *
 
 [main]
-capslock = f24
+{voice_key.lower()} = f24
 """
     
     keyd_conf = "/etc/keyd/ghosttype.conf"

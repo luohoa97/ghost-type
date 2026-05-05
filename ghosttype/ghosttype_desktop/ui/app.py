@@ -11,10 +11,11 @@ from ghosttype_desktop.app import GhostTypeDesktopApp, create_app
 
 
 class GhostTypeWindow(Adw.ApplicationWindow):
-    def __init__(self, app: Adw.Application, **kwargs):
+    def __init__(self, app: Adw.Application, voice_key: str = "F24", **kwargs):
         super().__init__(**kwargs)
         self.app = app
         self._state = "idle"
+        self._voice_key = voice_key
 
         self.set_title("GhostType")
         self.set_default_size(400, 300)
@@ -45,7 +46,7 @@ class GhostTypeWindow(Adw.ApplicationWindow):
         box.append(self.status_icon)
 
         self.instruction_label = Gtk.Label()
-        self.instruction_label.set_markup("<small>Press F24 to start recording</small>")
+        self.instruction_label.set_markup(f"<small>Press {self._voice_key} to start recording</small>")
         self.instruction_label.set_halign(Gtk.Align.CENTER)
         box.append(self.instruction_label)
 
@@ -147,12 +148,13 @@ class GhostTypeWindow(Adw.ApplicationWindow):
 
 
 class GhostTypeApplication(Adw.Application):
-    def __init__(self, **kwargs):
+    def __init__(self, voice_key: str = "F24", **kwargs):
         super().__init__(**kwargs)
         self.connect('activate', self.on_activate)
 
         self.ghosttype_app: Optional[GhostTypeDesktopApp] = None
         self.window: Optional[GhostTypeWindow] = None
+        self._voice_key = voice_key
 
     def _setup_ghosttype_app(self):
         """Setup the main GhostType app."""
@@ -182,7 +184,7 @@ class GhostTypeApplication(Adw.Application):
 
     def on_activate(self, app):
         if self.window is None:
-            self.window = GhostTypeWindow(application=app)
+            self.window = GhostTypeWindow(application=app, voice_key=self._voice_key)
 
         if self.ghosttype_app is None:
             self._setup_ghosttype_app()
@@ -191,14 +193,15 @@ class GhostTypeApplication(Adw.Application):
 
 
 class GhostTypeUI:
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, voice_key: str = "F24"):
         self.config = config or {}
         self._app: Optional[GhostTypeApplication] = None
         self._window: Optional[GhostTypeWindow] = None
         self._thread: Optional[threading.Thread] = None
+        self._voice_key = voice_key
 
     def _run_gtk(self):
-        self._app = GhostTypeApplication()
+        self._app = GhostTypeApplication(voice_key=self._voice_key)
         self._window = self._app.window
         self._app._setup_ghosttype_app()
         self._app.run(None)
@@ -238,8 +241,13 @@ class GhostTypeUI:
         return "idle"
 
 
-def launch_ui(config: Optional[Dict[str, Any]] = None) -> GhostTypeUI:
-    return GhostTypeUI(config)
+def launch_ui(config: Optional[Dict[str, Any]] = None, voice_key: Optional[str] = None) -> GhostTypeUI:
+    if voice_key is None:
+        from ghosttype.core.config import ConfigManager
+        config_manager = ConfigManager()
+        config_manager.load()
+        voice_key = config_manager.config.hotkeys.voice_key
+    return GhostTypeUI(config, voice_key=voice_key)
 
 
 def main():

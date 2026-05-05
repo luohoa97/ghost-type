@@ -44,12 +44,16 @@ def daemon_status():
 @app.command("foreground")
 def daemon_foreground():
     """Run daemon in foreground."""
+    from ghosttype.core.config import ConfigManager
+    config_manager = ConfigManager()
+    config_manager.load()
+    voice_key = config_manager.config.hotkeys.voice_key
+    
     console.print("[bold green]Running GhostType in foreground mode...[/bold green]")
     console.print("Press Ctrl+C to stop")
-    console.print("Use F24 key to start recording")
-    console.print("Use Shift+F24 for OCR")
+    console.print(f"Use {voice_key} key to start recording")
+    console.print(f"Use Shift+{voice_key} for OCR")
     
-    # This would start the actual daemon
     import time
     try:
         while True:

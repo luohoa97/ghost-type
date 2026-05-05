@@ -27,7 +27,12 @@ class KeydEvent:
 class KeydProvider:
     """Input provider using keyd daemon."""
 
-    F24_KEY_CODE = 107
+    VOICE_KEY_CODES = {
+        "CapsLock": 58,
+        "F24": 107,
+        "F22": 105,
+        "F23": 106,
+    }
     KEY_MAP = {
         58: "CapsLock",
         57: "Space",
@@ -36,11 +41,12 @@ class KeydProvider:
         107: "F24",
     }
 
-    def __init__(self, config: Optional[ConfigManager] = None):
+    def __init__(self, config: Optional[ConfigManager] = None, voice_key: Optional[str] = None):
         self.config = config or ConfigManager()
         self.config.load()
 
-        self._hotkey = self.config.config.hotkeys.voice_key
+        self._voice_key = voice_key or self.config.config.hotkeys.voice_key
+        self._voice_key_code = self.VOICE_KEY_CODES.get(self._voice_key, 58)
         self._cancel_key = self.config.config.hotkeys.cancel_key
         self._ocr_key = self.config.config.hotkeys.ocr_key
         self._record_mode = self.config.config.hotkeys.record_mode
@@ -81,7 +87,7 @@ class KeydProvider:
 
     def get_config_content(self) -> str:
         """Get the keyd configuration content."""
-        voice_key = self._hotkey
+        voice_key = self._voice_key
         if voice_key == "F24":
             return """[ids]
 *
@@ -95,6 +101,20 @@ capslock = f24
 
 [main]
 capslock = f24
+"""
+        elif voice_key == "F22":
+            return """[ids]
+*
+
+[main]
+f22 = f24
+"""
+        elif voice_key == "F23":
+            return """[ids]
+*
+
+[main]
+f23 = f24
 """
         else:
             return f"""[ids]
@@ -183,8 +203,8 @@ capslock = f24
         if event_type == 1:
             key_name = self.KEY_MAP.get(code, None)
 
-            if key_name is None and code == self.F24_KEY_CODE:
-                key_name = "F24"
+            if key_name is None and code == self._voice_key_code:
+                key_name = self._voice_key
 
             if key_name:
                 state = "down" if value == 1 else "up"
@@ -241,11 +261,11 @@ capslock = f24
             "available": self.is_available(),
             "running": self.is_running(),
             "config_path": self._find_keyd_config(),
-            "hotkey": self._hotkey,
+            "voice_key": self._voice_key,
+            "voice_key_code": self._voice_key_code,
             "record_mode": self._record_mode,
             "cancel_key": self._cancel_key,
             "ocr_key": self._ocr_key,
-            "f24_key_code": self.F24_KEY_CODE,
         }
 
 

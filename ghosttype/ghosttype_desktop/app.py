@@ -83,12 +83,13 @@ class GhostTypeDesktopApp:
     def _initialize_input(self):
         """Initialize input provider."""
         try:
+            voice_key = self.config.hotkeys.voice_key
             if KeydProvider().is_available():
-                self._input_provider = KeydProvider(ConfigManager())
-                self._logger.info("Using keyd input provider")
-            elif EvdevProvider().is_available():
-                self._input_provider = EvdevProvider()
-                self._logger.info("Using evdev input provider")
+                self._input_provider = KeydProvider(ConfigManager(), voice_key=voice_key)
+                self._logger.info(f"Using keyd input provider (voice_key={voice_key})")
+            elif EvdevProvider(voice_key=voice_key).is_available():
+                self._input_provider = EvdevProvider(voice_key=voice_key)
+                self._logger.info(f"Using evdev input provider (voice_key={voice_key})")
             else:
                 self._logger.warning("No input provider available")
         except Exception as e:
@@ -242,37 +243,40 @@ class GhostTypeDesktopApp:
             raise CapabilityUnavailable("No input provider available")
 
         self._event_callback = callback
+        voice_key = self.config.hotkeys.voice_key
+        voice_key_upper = voice_key.upper()
+        voice_key_code = self._input_provider._voice_key_code if hasattr(self._input_provider, '_voice_key_code') else None
 
         def handle_event(event):
             if hasattr(event, 'key'):
                 key = event.key.upper()
                 state = event.state
 
-                if key == 'F24':
+                if key == voice_key_upper:
                     if state == 'down':
                         self._key_pressed = True
-                        self._logger.debug("F24 pressed")
+                        self._logger.debug(f"{voice_key} pressed")
                         self.start_recording()
                     elif state == 'up':
                         self._key_pressed = False
-                        self._logger.debug("F24 released")
+                        self._logger.debug(f"{voice_key} released")
                         if self._hold_mode:
                             self.stop_recording()
             elif hasattr(event, 'code'):
-                if event.code == 107:
+                if voice_key_code and event.code == voice_key_code:
                     if event.is_key_down:
                         self._key_pressed = True
-                        self._logger.debug("F24 pressed (evdev)")
+                        self._logger.debug(f"{voice_key} pressed (evdev)")
                         self.start_recording()
                     elif event.is_key_up:
                         self._key_pressed = False
-                        self._logger.debug("F24 released (evdev)")
+                        self._logger.debug(f"{voice_key} released (evdev)")
                         if self._hold_mode:
                             self.stop_recording()
 
         try:
             self._input_provider.start_listening(handle_event)
-            self._logger.info("Hotkey listening started")
+            self._logger.info(f"Hotkey listening started (voice_key={voice_key})")
         except Exception as e:
             raise CapabilityUnavailable(f"Failed to start listening: {e}")
 
