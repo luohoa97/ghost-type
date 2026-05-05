@@ -1,0 +1,25 @@
+[project]
+name = "ghosttype"
+version = "0.1.0"
+description = "Linux Desktop Assistant Runtime"
+requires-python = ">=3.11"
+dependencies = [
+    "typer",
+    "rich",
+    "pydantic",
+    "tomlkit",
+    "httpx",
+    "platformdirs",
+    "sounddevice",
+    "numpy",
+    "groq",
+    "openai",
+    "typing-extensions",
+]
+
+[project.scripts]
+ghosttype = "ghosttype.cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,23 @@
+[Unit]
+Description=GhostType - Linux Desktop Assistant
+Documentation=https://github.com/ghosttype/ghosttype
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ghosttype daemon foreground
+Restart=on-failure
+RestartSec=5
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=%h/.config/ghosttype
+ReadWritePaths=%h/.local/share/ghosttype
+ReadWritePaths=%h/.cache/ghosttype
+
+[Install]
+WantedBy=graphical-session.target

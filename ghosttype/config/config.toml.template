@@ -1,0 +1,10 @@
+[app]
+mode = "fast"
+
+[features]
+stt = true
+smart_router = true
+
+[stt]
+provider = "insanely_fast_whisper"
+model = "openai/whisper-large-v3"
