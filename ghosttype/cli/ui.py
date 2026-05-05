@@ -12,10 +12,13 @@ def ui():
     console.print(Panel("[bold green]GhostType UI[/bold green]"))
     
     try:
-        from gi.repository import Gtk, Gdk, Adw
-        from ghosttype.ghosttype_desktop.ui.app import GhostTypeApplication, main as ui_main
+        import gi
+        gi.require_version("Gtk", "4.0")
+        gi.require_version("Adw", "1")
+        from ghosttype.packages.ghosttype_desktop.ui.app import GhostTypeApp
         
-        ui_main()
+        app = GhostTypeApp()
+        app.run()
     except ImportError as e:
         console.print(f"[red]Failed to import UI dependencies: {e}[/red]")
         console.print("")
@@ -30,41 +33,18 @@ def ui_doctor():
     """Check UI availability."""
     console.print(Panel("[bold green]UI Diagnostics[/bold green]"))
     
-    from rich.table import Table
     table = Table("Component", "Status", "Message")
-    
-    gtk_available = False
-    adw_available = False
     
     try:
         import gi
         gi.require_version("Gtk", "4.0")
-        from gi.repository import Gtk
-        gtk_available = True
-    except (ImportError, ValueError) as e:
-        pass
-    
-    try:
-        import gi
         gi.require_version("Adw", "1")
-        from gi.repository import Adw
-        adw_available = True
-    except (ImportError, ValueError) as e:
-        pass
-    
-    if gtk_available:
-        table.add_row("PyGObject", "[green]Available[/green]", "GTK 4 bindings installed")
-    else:
-        table.add_row("PyGObject", "[red]Missing[/red]", "Install python3-gi")
-    
-    if adw_available:
-        table.add_row("libadwaita", "[green]Available[/green]", "Adw bindings installed")
-    else:
-        table.add_row("libadwaita", "[red]Missing[/red]", "Install gir1.2-adw-1")
-    
-    if gtk_available and adw_available:
-        table.add_row("UI", "[green]Ready[/green]", "Run 'ghosttype ui' to launch")
-    else:
-        table.add_row("UI", "[yellow]Not Ready[/yellow]", "Install dependencies above")
+        from gi.repository import Gtk, Adw
+        
+        table.add_row("PyGObject", "✅ Available", "GTK bindings installed")
+        table.add_row("libadwaita", "✅ Available", "Adw bindings installed")
+    except ImportError as e:
+        table.add_row("PyGObject", "❌ Missing", str(e))
+        table.add_row("libadwaita", "❌ Missing", "Install python3-gobject gir1.2-adw-1")
     
     console.print(table)
