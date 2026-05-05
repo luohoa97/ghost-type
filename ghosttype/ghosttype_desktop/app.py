@@ -82,18 +82,23 @@ class GhostTypeDesktopApp:
 
     def _initialize_input(self):
         """Initialize input provider."""
+        voice_key = self.config.hotkeys.voice_key
         try:
-            voice_key = self.config.hotkeys.voice_key
             if KeydProvider().is_available():
                 self._input_provider = KeydProvider(ConfigManager(), voice_key=voice_key)
                 self._logger.info(f"Using keyd input provider (voice_key={voice_key})")
-            elif EvdevProvider(voice_key=voice_key).is_available():
+                return
+        except Exception:
+            pass
+        try:
+            if EvdevProvider(voice_key=voice_key).is_available():
                 self._input_provider = EvdevProvider(voice_key=voice_key)
                 self._logger.info(f"Using evdev input provider (voice_key={voice_key})")
-            else:
-                self._logger.warning("No input provider available")
+                return
         except Exception as e:
             self._logger.warning(f"Input provider error: {e}")
+        if not self._input_provider:
+            self._logger.warning("No input provider available")
 
     def _initialize_router(self):
         """Initialize router."""

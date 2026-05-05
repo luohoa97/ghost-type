@@ -184,7 +184,7 @@ f23 = f24
 
                 for fd in rlist:
                     try:
-                        data = os.read(fd.fileno(), 24)
+                        data = os.read(fd, 24)
                         if len(data) == 24:
                             self._process_evdev_raw(data)
                     except (OSError, IOError):
